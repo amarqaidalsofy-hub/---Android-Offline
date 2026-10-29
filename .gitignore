@@ -1,35 +1,36 @@
-# Gradle files
-.gradle/
-build/
-.kotlin/
+name: Build Android APK
 
-# Local configuration file (sdk path, etc)
-local.properties
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
 
-# Log/OS Files
-*.log
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-# Android Studio generated files and folders
-captures/
-.externalNativeBuild/
-.cxx/
-*.aab
-*.apk
-output-metadata.json
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-# IntelliJ
-*.iml
-.idea/
-misc.xml
-deploymentTargetDropDown.xml
-render.experimental.xml
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
 
-# Keystore files
-*.jks
-*.keystore
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+      continue-on-error: true
 
-# Google Services (e.g. APIs or Firebase)
-google-services.json
+    - name: Build APK with Gradle
+      run: ./gradlew assembleDebug
+      continue-on-error: true
 
-# Android Profiling
-*.hprof
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug
+        path: app/build/outputs/apk/debug/app-debug.apk
