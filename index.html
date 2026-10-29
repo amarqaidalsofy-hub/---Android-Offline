@@ -1,0 +1,129 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>عمار الصوفي للمحاسبة</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f2f5f9;font-family:Arial,sans-serif;color:#172b4d}
+header{background:#075e54;color:white;padding:22px 16px;text-align:center}
+header h2{margin:0 0 8px}
+nav{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:12px}
+button{border:0;border-radius:9px;padding:12px;background:#087f70;color:white;font-size:15px}
+nav button{background:white;color:#075e54;border:1px solid #d8e1e8}
+main{padding:12px}
+.card{background:white;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px #0001}
+h3{margin-top:0}
+input,select{width:100%;padding:12px;margin:6px 0 12px;border:1px solid #ccd5df;border-radius:8px;font-size:16px}
+.stat{display:inline-block;width:48%;padding:12px;background:#e3f4ef;border-radius:8px;margin:1% 0}
+small{color:#68778d}
+table{width:100%;border-collapse:collapse}
+td,th{padding:9px;border-bottom:1px solid #ddd;text-align:right}
+.danger{background:#b42318}
+</style>
+</head>
+<body>
+<header>
+<h2>عمار الصوفي للمحاسبة</h2>
+<div>نظام محاسبي يعمل دون إنترنت</div>
+</header>
+<nav>
+<button onclick="show('home')">الرئيسية</button>
+<button onclick="show('entry')">قيد جديد</button>
+<button onclick="show('people')">العملاء</button>
+<button onclick="show('report')">التقارير</button>
+</nav>
+<main id="app"></main>
+<script>
+const key='ammar_accounting_v1';
+let data;
+try{
+data=JSON.parse(localStorage.getItem(key))||{entries:[],people:[]};
+}catch(e){data={entries:[],people:[]}}
+function save(){
+localStorage.setItem(key,JSON.stringify(data));
+}
+function money(n){
+return Number(n||0).toLocaleString('ar-YE')+' ر.ي';
+}
+function show(page){
+const app=document.getElementById('app');
+if(page==='home'){
+let income=data.entries.filter(x=>x.type==='in').reduce((s,x)=>s+x.amount,0);
+let expense=data.entries.filter(x=>x.type==='out').reduce((s,x)=>s+x.amount,0);
+app.innerHTML=`<section class="card"><h3>ملخص الحسابات</h3>
+<div class="stat">الإيرادات<br><b>${money(income)}</b></div>
+<div class="stat">المصروفات<br><b>${money(expense)}</b></div>
+<div class="stat">الرصيد<br><b>${money(income-expense)}</b></div>
+<div class="stat">العملاء<br><b>${data.people.length}</b></div>
+</section><section class="card"><h3>آخر العمليات</h3>${rows(data.entries.slice(-5).reverse())}</section>`;
+}
+if(page==='entry'){
+app.innerHTML=`<section class="card"><h3>تسجيل عملية مالية</h3>
+<form id="entryForm">
+<label>نوع العملية</label><select name="type"><option value="in">إيراد / قبض</option><option value="out">مصروف / دفع</option></select>
+<label>البيان</label><input name="note" required placeholder="مثال: مبيعات أو مشتريات">
+<label>المبلغ بالريال اليمني</label><input name="amount" type="number" min="0.01" step="any" required>
+<button>حفظ العملية</button></form></section>`;
+document.getElementById('entryForm').onsubmit=e=>{
+e.preventDefault();let f=new FormData(e.target);
+data.entries.push({id:Date.now(),type:f.get('type'),note:f.get('note'),amount:Number(f.get('amount')),date:new Date().toLocaleDateString('ar-YE')});
+save();show('home');alert('تم حفظ العملية على هذا الجهاز');
+};
+}
+if(page==='people'){
+app.innerHTML=`<section class="card"><h3>إضافة عميل</h3><form id="personForm">
+<input name="name" required placeholder="اسم العميل">
+<input name="phone" placeholder="رقم الهاتف">
+<button>حفظ العميل</button></form></section>
+<section class="card"><h3>قائمة العملاء</h3>${data.people.map((p,i)=>`<p>${i+1}. ${esc(p.name)} — ${esc(p.phone||'')}</p>`).join('')||'لا يوجد عملاء بعد'}</section>`;
+document.getElementById('personForm').onsubmit=e=>{
+e.preventDefault();let f=new FormData(e.target);
+data.people.push({name:f.get('name'),phone:f.get('phone')});
+save();show('people');
+};
+}
+if(page==='report'){
+app.innerHTML=`<section class="card"><h3>التقارير</h3>
+<p>عدد العمليات: ${data.entries.length}</p>
+${rows(data.entries.slice().reverse())}
+<button onclick="exportData()">تصدير نسخة احتياطية</button>
+<label>استعادة نسخة احتياطية JSON</label><input id="backup" type="file" accept=".json,application/json">
+<button onclick="importData()">استعادة البيانات</button>
+</section>`;
+}
+}
+function esc(s){
+return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function rows(items){
+if(!items.length)return '<p>لا توجد عمليات مسجلة.</p>';
+return '<table><tr><th>البيان</th><th>المبلغ</th></tr>'+
+items.map(x=>`<tr><td>${esc(x.note)}<br><small>${esc(x.date)}</small></td><td>${x.type==='out'?'-':'+'}${money(x.amount)}</td></tr>`).join('')+'</table>';
+}
+function exportData(){
+let blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+let a=document.createElement('a');a.href=URL.createObjectURL(blob);
+a.download='ammar-accounting-backup.json';a.click();
+URL.revokeObjectURL(a.href);
+}
+function importData(){
+let file=document.getElementById('backup').files[0];
+if(!file)return alert('اختر ملف النسخة الاحتياطية أولاً');
+let r=new FileReader();
+r.onload=()=>{
+try{
+let d=JSON.parse(r.result);
+if(!d||!Array.isArray(d.entries)||!Array.isArray(d.people))throw Error();
+if(!confirm('سيتم استبدال البيانات الحالية. هل تريد المتابعة؟'))return;
+data=d;save();show('report');alert('تمت استعادة البيانات');
+}catch(e){alert('الملف غير صالح')}
+};
+r.readAsText(file);
+}
+show('home');
+</script>
+</body>
+</html>
